@@ -1,6 +1,6 @@
 {
     "client_version"  : 29,
-    "client_repo_url" : "https://github.com/AndyGrant/OpenBench",
+    "client_repo_url" : "https://github.com/LeelaChessZero/OpenBench",
     "client_repo_ref" : "master",
 
     "use_cross_approval"          : false,
@@ -19,29 +19,12 @@
         "Pohl.pgn",
         "UHO_4060_v2.epd",
         "UHO_4060_vB.epd",
-        "UHO_4060_vT.epd"
+        "UHO_4060_vT.epd",
+        "UHO_Lichess_4852_v1.epd"
     ],
 
     "engines" : [
-        "4ku",
-        "Berserk",
-        "Bit-Genie",
-        "BlackMarlin",
-        "Demolito",
-        "Drofa",
-        "Equisetum",
-        "Ethereal",
-        "FabChess",
-        "Halogen",
-        "Igel",
-        "Koivisto",
-        "Laser",
-        "RubiChess",
-        "Seer",
-        "Stash",
-        "Stockfish",
-        "Weiss",
-        "Winter",
-        "Zahak"
+        "Leela",
+        "Stockfish"
     ]
 }
