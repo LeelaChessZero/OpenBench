@@ -5,6 +5,7 @@ OpenBench/migrations/*
 credentials
 credentials.*
 db.sqlite3
+.python-version
 
 Scripts/Engines/*
 Scripts/Networks/*
