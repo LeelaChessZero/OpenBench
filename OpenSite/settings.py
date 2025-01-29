@@ -15,7 +15,7 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-with open(os.path.expanduser('~/secrets/openbench-key.txt')) as f:
+with open(os.path.expanduser('~/servers/etc/openbench-key.txt')) as f:
     SECRET_KEY = f.read().strip()
 DEBUG = False
 
