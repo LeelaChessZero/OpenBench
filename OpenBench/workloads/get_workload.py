@@ -127,6 +127,7 @@ def filter_valid_workloads(request, machine):
     return candidates, has_focus
 
 def valid_hardware_assignment(workload, machine):
+    return True   # TODO fix that properly
 
     # Extract thread requirements from the workload itself
     dev_threads  = int(OpenBench.utils.extract_option(workload.dev_options,  'Threads'))
@@ -351,6 +352,7 @@ def game_distribution(test, machine):
 
     # Number of params being evaluated at a single time, if doing SPSA in SINGLE mode
     spsa_count = (worker_threads // max(dev_threads, base_threads)) // 2
+    spsa_count = 1  # Fix that properly
 
     # SPSA is treated specially, if we are distributing many parameter sets at once
     is_multiple_spsa = test.test_mode == 'SPSA' and test.spsa['distribution_type'] == 'MULTIPLE'
