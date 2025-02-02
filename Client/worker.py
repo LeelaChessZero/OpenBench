@@ -401,7 +401,8 @@ class Cutechess:
 
         # Already computed for us by the Server
         return '-concurrency %d -games %d' % (
-            config.workload['distribution']['concurrency-per'],
+            # config.workload['distribution']['concurrency-per'],
+            1,
             config.workload['distribution']['games-per-cutechess'],
         )
 
