@@ -20,7 +20,7 @@
 
 from django.db.models import CharField, IntegerField, BooleanField, FloatField
 from django.db.models import JSONField, ForeignKey, DateTimeField, OneToOneField
-from django.db.models import CASCADE, PROTECT, Model
+from django.db.models import CASCADE, PROTECT, Model, TextChoices
 from django.contrib.auth.models import User
 
 class Engine(Model):
@@ -89,6 +89,11 @@ class Result(Model):
 
 class Test(Model):
 
+    class ScaleMethod(TextChoices):
+        DEV  = 'DEV' , 'DEV'
+        BASE = 'BASE', 'BASE'
+        BOTH = 'BOTH', 'BOTH'
+
     # Misc information
     author      = CharField(max_length=64)
     upload_pgns = CharField(max_length=16, default='FALSE')
@@ -102,8 +107,8 @@ class Test(Model):
     dev_repo         = CharField(max_length=1024)
     dev_engine       = CharField(max_length=64)
     dev_options      = CharField(max_length=256)
-    dev_network      = CharField(max_length=256)
-    dev_netname      = CharField(max_length=256)
+    dev_network      = CharField(max_length=256, blank=True)
+    dev_netname      = CharField(max_length=256, blank=True)
     dev_time_control = CharField(max_length=32)
 
     # Base Engine, and all of its settings
@@ -111,14 +116,18 @@ class Test(Model):
     base_repo         = CharField(max_length=1024)
     base_engine       = CharField(max_length=64)
     base_options      = CharField(max_length=256)
-    base_network      = CharField(max_length=256)
-    base_netname      = CharField(max_length=256)
+    base_network      = CharField(max_length=256, blank=True)
+    base_netname      = CharField(max_length=256, blank=True)
     base_time_control = CharField(max_length=32)
 
     # Changable Test Parameters
     workload_size = IntegerField(default=32)
     priority      = IntegerField(default=0)
     throughput    = IntegerField(default=0)
+
+    # Scaling Mechanisms
+    scale_method  = CharField(max_length=16, choices=ScaleMethod.choices, default=ScaleMethod.BASE)
+    scale_nps     = IntegerField(default=0)
 
     # Tablebases and Cutechess adjudicatoins
     syzygy_wdl  = CharField(max_length=16, default='OPTIONAL')
@@ -137,7 +146,7 @@ class Test(Model):
     upperllr      = FloatField(default=0.0) # SPRT
     max_games     = IntegerField(default=0) # GAMES or DATAGEN
     spsa          = JSONField(default=dict, blank=True, null=True) # SPSA
-    genfens_args  = CharField(max_length=256, default='') # DATAGEN
+    genfens_args  = CharField(max_length=256, default='', blank=True) # DATAGEN
     play_reverses = BooleanField(default=False) # DATAGEN
 
     # Collection of all individual Result() objects
@@ -182,6 +191,9 @@ class Test(Model):
 
     def as_nwld(self):
         return (self.games, self.wins, self.losses, self.draws)
+
+    def workload_type_str(self):
+        return {'SPSA' : 'tune', 'DATAGEN' : 'datagen'}.get(self.test_mode, 'test')
 
 class LogEvent(Model):
 
