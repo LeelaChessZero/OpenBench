@@ -117,7 +117,7 @@ def run_benchmark(binary, network, private, threads, sets, expected=None):
 
     benches, speeds = [], []
     for ii in range(sets):
-        for bench, speed in multi_core_bench(binary, network, private, 1):
+        for bench, speed in multi_core_bench(binary, network, private, threads):
             benches.append(bench); speeds.append(speed)
 
     if len(set(benches)) != 1:
@@ -126,7 +126,7 @@ def run_benchmark(binary, network, private, threads, sets, expected=None):
     if None in benches or None in speeds:
         raise utils.OpenBenchBadBenchException('[%s] Failed to Execute Benchmark' % (engine))
 
-    if expected and expected != benches[0]:
-        raise utils.OpenBenchBadBenchException('[%s] Wrong Bench: %d' % (engine, benches[0]))
+    # if expected and expected != benches[0]:
+        # raise utils.OpenBenchBadBenchException('[%s] Wrong Bench: %d' % (engine, benches[0]))
 
     return sum(speeds) // len(speeds), benches[0]

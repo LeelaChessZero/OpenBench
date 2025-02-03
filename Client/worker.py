@@ -1123,9 +1123,9 @@ def safe_run_benchmarks(config, branch, engine, network):
     binary   = os.path.join('Engines', engine)
 
     try:
-        print('\nRunning %dx Benchmarks for %s' % (config.threads, name))
+        print('\nRunning Benchmark for %s' % (name))
         speed, nodes = bench.run_benchmark(
-            binary, network, private, config.threads, 1, expected)
+            binary, network, private, 1, 1, expected)
 
     except utils.OpenBenchBadBenchException as error:
         ServerReporter.report_bad_bench(config, error.message)
