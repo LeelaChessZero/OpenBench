@@ -31,6 +31,20 @@
       "both_options": "Threads=2 Hash=1",
       "both_time_control": "40.0+0.4",
       "workload_size": 8
+    },
+
+    "STC non-regression": {
+      "both_options": "Threads=2 Hash=1",
+      "both_time_control": "8.0+0.08",
+      "workload_size": 32,
+      "test_bounds": "[-3.00, 0.00]"
+    },
+
+    "LTC non-regression": {
+      "both_options": "Threads=2 Hash=1",
+      "both_time_control": "40.0+0.4",
+      "workload_size": 8,
+      "test_bounds": "[-3.00, 0.00]"
     }
   },
 
