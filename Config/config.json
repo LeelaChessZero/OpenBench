@@ -25,6 +25,7 @@
 
     "engines" : [
         "Leela",
+        "Leela-dag-preview",
         "Stockfish"
     ]
 }
