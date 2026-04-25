@@ -682,10 +682,6 @@ def client_get_workload(request, machine):
 @verify_worker
 def client_bench_error(request, machine):
 
-    # Find and stop the test with the bad bench
-    test = Test.objects.get(id=int(request.POST['test_id']))
-    test.finished = True; test.save()
-
     # Log the error into the Events table
     LogEvent.objects.create(
         author     = machine.user.username,
