@@ -151,7 +151,7 @@ def read_git_credentials(engine):
 
 
 def engine_binary_name(engine, commit_sha, net_path, private):
-    name = '%s-%s' % (engine, commit_sha.upper()[:8])
+    name = '%s-pro-%s' % (engine, commit_sha.upper()[:8])
     if net_path and not private:
         name += '-%s' % (net_path[-8:])
     return name
