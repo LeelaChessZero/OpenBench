@@ -311,6 +311,14 @@ def download_network(server, username, password, engine, net_name, net_sha, net_
 
 def download_public_engine(engine, net_path, branch, source, make_path, out_path, compiler=None):
 
+    old_out_path = out_path.replace('-pro', '')
+    if check_for_engine_binary(old_out_path):
+        print('Rename [%s] to [%s]' % (old_out_path, out_path))
+        if IS_WINDOWS:
+            os.rename(old_out_path + '.exe', out_path + '.exe')
+        else:
+            os.rename(old_out_path, out_path)
+
     # Check to see if we already have the binary
     if check_for_engine_binary(out_path):
         print('Found [%s-%s]' % (engine, branch))
