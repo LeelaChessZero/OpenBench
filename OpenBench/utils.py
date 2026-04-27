@@ -379,7 +379,7 @@ def network_edit(request, engine, network):
         return OpenBench.views.redirect(request, '/networks/', error='Valid characters are [a-zA-Z0-9_.-]')
 
     if not re.match(r'^\d+$', new_scale_nps):
-        return OpenBench.views.redirect(request, '/networks/', error='NPS Scale must be a non-negative integer')
+        return OpenBench.views.redirect(request, '/networks/%s/EDIT/%s' % (network.engine, network.sha256), error='NPS Scale must be a non-negative integer')
 
     # Ensure all changes are made, or no changes are made
     with transaction.atomic():
