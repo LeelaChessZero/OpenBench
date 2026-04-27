@@ -252,7 +252,7 @@ function change_network(network, target) {
     }
     var scale_nps = document.getElementById('scale_nps');
     for (const net of networks) {
-        if (net.sha256 == network && net.scale_nps > 0) {
+        if (net.sha256 === network && net.scale_nps > 0) {
             scale_nps.value = net.scale_nps;
         }
     }
