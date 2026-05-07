@@ -1128,6 +1128,7 @@ def safe_run_benchmarks(config, branch, engine, network):
             binary, network, private, 1, 1, expected)
 
     except utils.OpenBenchBadBenchException as error:
+        config.blacklist.append(config.workload['test']['id'])
         ServerReporter.report_bad_bench(config, error.message)
         raise
 
