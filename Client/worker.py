@@ -493,7 +493,7 @@ class Cutechess:
         return '-pgnout %s' % (Cutechess.pgn_name(config, timestamp, cutechess_idx))
 
     @staticmethod
-    def update_results(results, line):
+    def update_results(config, results, line, base_name, base_network):
 
         # Given any game #, find the other in the pair
         def game_to_pair(g):
@@ -514,19 +514,36 @@ class Cutechess:
             tokens = line.split()
             return int(tokens[2]), tokens[6]
 
+        def is_gpu_crashed(config, engine, network):
+            print('[WARNING] Checking if crash was caused by a GPU problem...')
+            try:
+                safe_run_benchmarks(config, 'base', engine, network)
+                return False
+            except utils.OpenBenchBadBenchException:
+                print('[ERROR] GPU crash detected!')
+                return True
+
         # Parse for errors resulting in adjudication
         reason = line.split(':')[1]
+        crashed = 'disconnect' in reason or 'stalls' in reason
+        hw_crashed = crashed and is_gpu_crashed(config, base_name, base_network)
         results['crashes'   ] += 'disconnect' in reason or 'stalls' in reason
         results['timelosses'] += 'on time' in reason
         results['illegals'  ] += 'illegal' in reason
 
         # Parse Game # and result, and save
         game, result = parse_finished_game(line)
-        results['games'][game] = result
+        results['games'][game] = result if not hw_crashed else 'hw_crash'
 
         # Check to see if the Pair has finished
         first, second = game_to_pair(game)
         if first not in results['games'] or second not in results['games']:
+            return
+
+        # Don't report results when we detect a GPU issue.
+        if results['games'][first] == 'hw_crash' or results['games'][second] == 'hw_crash':
+            del results['games'][first]
+            del results['games'][second]
             return
 
         # Get the indices for the Pentanomial, and the two for Trinomial
@@ -1024,7 +1041,7 @@ def complete_workload(config):
         tasks = [] # Create each of the Cutechess workers
         for x in range(cutechess_cnt):
             cmd = build_cutechess_command(config, dev_name, base_name, scale_factor, timestamp, x)
-            tasks.append(executor.submit(run_and_parse_cutechess, config, cmd, x, results, abort_flag))
+            tasks.append(executor.submit(run_and_parse_cutechess, config, cmd, x, results, abort_flag, base_name, base_network))
 
         # Process the Queue until we exit, finish, or are told to stop by the server
         try:
@@ -1148,7 +1165,7 @@ def build_cutechess_command(config, dev_cmd, base_cmd, scale_factor, timestamp, 
 
     return ['cutechess-ob.exe', './cutechess-ob'][IS_LINUX] + flags
 
-def run_and_parse_cutechess(config, command, cutechess_idx, results_queue, abort_flag):
+def run_and_parse_cutechess(config, command, cutechess_idx, results_queue, abort_flag, base_name, base_network):
 
     print('\n[#%d] Launching Cutechess...\n%s\n' % (cutechess_idx, command))
     cutechess = Popen(command.split(), stdout=PIPE)
@@ -1178,7 +1195,7 @@ def run_and_parse_cutechess(config, command, cutechess_idx, results_queue, abort
             print('[#%d] %s' % (cutechess_idx, line))
 
         if 'Finished game' in line:
-            Cutechess.update_results(results, line)
+            Cutechess.update_results(config, results, line, base_name, base_network)
 
         # Add to the results queue every time we have a game-pair finished
         if any(results['pentanomial']):
