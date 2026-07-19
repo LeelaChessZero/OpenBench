@@ -20,6 +20,7 @@
 
 import argparse
 import cpuinfo
+import datetime
 import importlib
 import json
 import multiprocessing
@@ -62,6 +63,7 @@ TIMEOUT_HTTP     = 30 # Timeout in seconds for HTTP requests
 TIMEOUT_ERROR    = 10 # Timeout in seconds when any errors are thrown
 TIMEOUT_WORKLOAD = 30 # Timeout in seconds between workload requests
 REPORT_INTERVAL  = 30 # Seconds between reports to the Server
+ENGINE_LOG_LINES = 200 # Lines of the engine log to send to the Server on error
 
 IS_WINDOWS = platform.system() == 'Windows' # Don't touch this
 IS_LINUX   = platform.system() != 'Windows' # Don't touch this
@@ -119,7 +121,7 @@ class Configuration:
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
         # Ensure the folder structure for ease of coding
-        for folder in ['PGNs', 'Engines', 'Networks', 'Books']:
+        for folder in ['PGNs', 'Engines', 'Networks', 'Books', 'Logs']:
             if not os.path.isdir(folder):
                 os.mkdir(folder)
 
@@ -493,6 +495,10 @@ class Cutechess:
         return '-pgnout %s' % (Cutechess.pgn_name(config, timestamp, cutechess_idx))
 
     @staticmethod
+    def enginelog_settings(config, branch, timestamp, cutechess_idx):
+        return 'option.LogFile=../%s' % (Cutechess.log_name(config, branch, timestamp, cutechess_idx))
+
+    @staticmethod
     def update_results(config, results, line, base_name, base_network):
 
         # Given any game #, find the other in the pair
@@ -579,6 +585,15 @@ class Cutechess:
 
         # Format: <Test>-<Result>-<Time>-<Index>.pgn
         return 'PGNs/%d.%d.%d.%d.pgn' % (test_id, result_id, timestamp, cutechess_idx)
+
+    @staticmethod
+    def log_name(config, branch, timestamp, cutechess_idx):
+
+        test_id   = int(config.workload['test']['id'])
+        result_id = int(config.workload['result']['id'])
+
+        # Format: <Test>-<branch>-<Result>-<Time>-<Index>.pgn
+        return 'Logs/%d.%s.%d.%d.%d.log' % (test_id, branch, result_id, timestamp, cutechess_idx)
 
 
 class PGNHelper:
@@ -717,12 +732,28 @@ class ResultsReporter(object):
 
             # Reuse logic that was given to Cutechess to decide the PGN name
             fname = Cutechess.pgn_name(self.config, timestamp, x)
+            devlog = Cutechess.log_name(self.config, 'dev', timestamp, x)
+            baselog = Cutechess.log_name(self.config, 'base', timestamp, x)
+
+            if (not os.path.isfile(fname)) or (os.path.getsize(fname) == 0):
+                error = 'Start Failed'
+                as_str = '[Log "%s"]\n' % (devlog)
+                as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES)
+                as_str += '\n\n[Log "%s"]\n' % (baselog)
+                as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES)
+                ServerReporter.report_engine_error(self.config, error, as_str)
+                continue
 
             # For any game with weird Termination, report it
             for header, moves in PGNHelper.slice_pgn_file(fname):
                 error = PGNHelper.get_error_reason(header)
                 if error:
                     as_str = PGNHelper.pretty_format(header, moves)
+                    end_time = PGNHelper.get_pgn_header(header, 'GameEndTime')
+                    as_str += '\n\n[Log "%s"]\n' % (devlog)
+                    as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES, end_time=end_time)
+                    as_str += '\n\n[Log "%s"]\n' % (baselog)
+                    as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES, end_time=end_time)
                     ServerReporter.report_engine_error(self.config, error, as_str)
 
 
@@ -749,6 +780,29 @@ def locate_utility(util, force_exit=True, report_error=True):
         if report_error: print('[Error] Unable to locate %s' % (util))
         if force_exit: sys.exit()
 
+def read_tail_of_log(logname, count, end_time=None):
+
+    if not os.path.isfile(logname):
+        return 'Unable to find file'
+
+    with open(logname) as fin:
+        lines = fin.readlines()
+
+    if end_time:
+        end_time = re.search(r'\d+:\d+:\d+', end_time).group()
+
+        end_time = datetime.datetime.strptime(end_time, '%H:%M:%S').time()
+
+        def is_before_end_time(line):
+            match = re.search(r'\d+:\d+:\d+', line)
+            if not match: return True
+            time = datetime.datetime.strptime(match.group(), '%H:%M:%S').time()
+            return time <= end_time
+
+        lines = list(filter(is_before_end_time, lines))
+
+    return ''.join(lines[slice(-count, None)])
+
 def set_cutechess_permissions():
 
     status = os.system('sudo -n chmod 777 cutechess-ob > /dev/null 2>&1')
@@ -771,6 +825,10 @@ def cleanup_client():
     for file in os.listdir('PGNs'):
         if file_age(os.path.join('PGNs', file)) > SECONDS_PER_DAY:
             os.remove(os.path.join('PGNs', file))
+
+    for file in os.listdir('Logs'):
+        if file_age(os.path.join('Logs', file)) > SECONDS_PER_DAY:
+            os.remove(os.path.join('Logs', file))
 
     for file in os.listdir('Engines'):
         if file_age(os.path.join('Engines', file)) > SECONDS_PER_WEEK:
@@ -1160,7 +1218,9 @@ def build_cutechess_command(config, dev_cmd, base_cmd, scale_factor, timestamp, 
     flags += ' ' + Cutechess.concurrency_settings(config)
     flags += ' ' + Cutechess.adjudication_settings(config)
     flags += ' ' + Cutechess.engine_settings(config, dev_cmd, 'dev', scale_factor, cutechess_idx)
+    flags += ' ' + Cutechess.enginelog_settings(config, 'dev', timestamp, cutechess_idx)
     flags += ' ' + Cutechess.engine_settings(config, base_cmd, 'base', scale_factor, cutechess_idx)
+    flags += ' ' + Cutechess.enginelog_settings(config, 'base', timestamp, cutechess_idx)
     flags += ' ' + Cutechess.book_settings(config, cutechess_idx)
     flags += ' ' + Cutechess.pgnout_settings(config, timestamp, cutechess_idx)
 
