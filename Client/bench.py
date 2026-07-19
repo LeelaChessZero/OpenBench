@@ -41,7 +41,7 @@ import sys
 
 import utils
 
-MAX_BENCH_TIME_SECONDS = 60
+MAX_BENCH_TIME_SECONDS = 18
 
 def parse_stream_output(stream):
 
