@@ -365,6 +365,7 @@ def network_edit(request, engine, network):
         return OpenBench.views.render(request, 'network.html', { 'network' : network })
 
     new_name        = request.POST['name']
+    new_scale_nps   = request.POST['scale_nps']
     new_default     = request.POST['default'] == 'TRUE'
     new_was_default = request.POST['was_default'] == 'TRUE'
 
@@ -376,6 +377,9 @@ def network_edit(request, engine, network):
     # Rejecct new names with strange characters
     if not re.match(r'^[a-zA-Z0-9_.-]+$', new_name):
         return OpenBench.views.redirect(request, '/networks/', error='Valid characters are [a-zA-Z0-9_.-]')
+
+    if not re.match(r'^\d+$', new_scale_nps):
+        return OpenBench.views.redirect(request, '/networks/', error='NPS Scale must be a non-negative integer')
 
     # Ensure all changes are made, or no changes are made
     with transaction.atomic():
@@ -391,6 +395,7 @@ def network_edit(request, engine, network):
 
         # Update the actual Network. Ensure was_default is set if default is
         network.name        = new_name
+        network.scale_nps   = int(new_scale_nps)
         network.default     = new_default
         network.was_default = new_default or new_was_default
         network.save()

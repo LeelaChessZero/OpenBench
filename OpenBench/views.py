@@ -827,10 +827,12 @@ def api_networks(request, engine):
 
         default = {
             'sha'    : network.sha256, 'name'    : network.name,
+            'scale_nps' : network.scale_nps,
             'author' : network.author, 'created' : str(network.created) }
 
         networks = [
           { 'sha'    : network.sha256, 'name'    : network.name,
+            'scale_nps' : network.scale_nps,
             'author' : network.author, 'created' : str(network.created) }
             for network in Network.objects.filter(engine=engine) ]
 

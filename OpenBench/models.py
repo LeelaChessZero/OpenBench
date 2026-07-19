@@ -218,6 +218,7 @@ class Network(Model):
     engine      = CharField(max_length=64)
     author      = CharField(max_length=64)
     created     = DateTimeField(auto_now_add=True)
+    scale_nps   = IntegerField(default=0)
 
     def __str__(self):
         return '[{}] {} ({})'.format(self.engine, self.name, self.sha256)
