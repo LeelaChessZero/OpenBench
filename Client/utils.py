@@ -151,7 +151,7 @@ def read_git_credentials(engine):
 
 
 def engine_binary_name(engine, commit_sha, net_path, private):
-    name = '%s-%s' % (engine, commit_sha.upper()[:8])
+    name = '%s-pro-%s' % (engine, commit_sha.upper()[:8])
     if net_path and not private:
         name += '-%s' % (net_path[-8:])
     return name
@@ -310,6 +310,14 @@ def download_network(server, username, password, engine, net_name, net_sha, net_
         raise OpenBenchCorruptedNetworkException('Invalid SHA for %s' % (net_name))
 
 def download_public_engine(engine, net_path, branch, source, make_path, out_path, compiler=None):
+
+    old_out_path = out_path.replace('-pro', '')
+    if check_for_engine_binary(old_out_path):
+        print('Rename [%s] to [%s]' % (old_out_path, out_path))
+        if IS_WINDOWS:
+            os.rename(old_out_path + '.exe', out_path + '.exe')
+        else:
+            os.rename(old_out_path, out_path)
 
     # Check to see if we already have the binary
     if check_for_engine_binary(out_path):
