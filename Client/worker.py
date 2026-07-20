@@ -408,8 +408,7 @@ class MatchRunner:
         games_per_round = 1 if no_reverse else 2
 
         return '-concurrency %d -rounds %d -games %d' % (
-#            config.workload['distribution']['concurrency-per'],
-            1,
+            config.workload['distribution']['concurrency-per'],
             config.workload['distribution']['rounds-per-runner'],
             games_per_round,
         )

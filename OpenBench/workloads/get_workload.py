@@ -302,9 +302,8 @@ def game_distribution(test, machine):
 
     # SPSA is treated specially, if we are distributing many parameter sets at once
     is_multiple_spsa = test.test_mode == 'SPSA' and test.spsa_run.distribution_type == 'MULTIPLE'
-
     return {
         'runner-count'      : spsa_count if is_multiple_spsa else worker_sockets,
-        'concurrency-per'   : 2 if is_multiple_spsa else max_concurrency,
-        'rounds-per-runner' : 2 * test.workload_size * (1 if is_multiple_spsa else max_concurrency),
+        'concurrency-per'   : 1,
+        'rounds-per-runner' : test.workload_size,
     }
