@@ -6,6 +6,7 @@ var repos    = JSON.parse(document.getElementById('json-repos'   ).textContent);
 function create_network_options(field_id, engine) {
 
     var has_default     = false;
+    var default_value = "";
     var network_options = document.getElementById(field_id);
 
     // Delete all existing Networks
@@ -25,6 +26,9 @@ function create_network_options(field_id, engine) {
         network_options.add(opt)
 
         has_default = has_default || network.default;
+        if (network.default) {
+            default_value = network.sha256;
+        }
     }
 
     { // Add a None option and set it to default if there was not one yet
@@ -33,6 +37,9 @@ function create_network_options(field_id, engine) {
         opt.value     = '';
         opt.selected  = !has_default;
         network_options.add(opt);
+    }
+    if (has_default) {
+        change_network(default_value, field_id.replace('_network', ''));
     }
 }
 
@@ -223,6 +230,9 @@ function apply_preset(preset, workload_type) {
 
 function change_engine(engine, target, workload_type) {
 
+    set_option('scale_nps', config.engines[engine].nps);
+    set_option('scale_method', workload_type == 'TUNE' ? 'DEV' : 'BASE');
+
     set_engine(engine, target);
 
     if (target == 'dev')
@@ -231,10 +241,21 @@ function change_engine(engine, target, workload_type) {
     if (target == 'dev' && (workload_type == 'TEST' || workload_type == 'DATAGEN'))
         set_engine(engine, 'base');
 
-    set_option('scale_nps', config.engines[engine].nps);
-    set_option('scale_method', workload_type == 'TUNE' ? 'DEV' : 'BASE');
-
     apply_preset('STC', workload_type);
+}
+
+function change_network(network, target) {
+    var scale_method = document.getElementById('scale_method').value;
+    var expected_target = scale_method == 'DEV' ? 'dev' : 'base';
+    if (target != expected_target) {
+        return;
+    }
+    var scale_nps = document.getElementById('scale_nps');
+    for (const net of networks) {
+        if (net.sha256 == network && net.scale_nps > 0) {
+            scale_nps.value = net.scale_nps;
+        }
+    }
 }
 
 function set_test_type() {

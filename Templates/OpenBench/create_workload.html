@@ -69,7 +69,8 @@
                     <label for="dev_bench" > {{dev_text}} Bench </label> <input value="1" id="dev_bench" name="dev_bench">
                 </div>
                 <div class="row">
-                    <label for="dev_network" > {{dev_text}} Network </label> <select id="dev_network" name="dev_network"></select>
+                    <label for="dev_network" > {{dev_text}} Network </label>
+		    <select id="dev_network" name="dev_network" onchange="change_network(value, 'dev')"></select>
                 </div>
                 <div class="row">
                     <label for="dev_options"> {{dev_text}} Options </label> <input id="dev_options" name="dev_options">
@@ -89,13 +90,20 @@
                         <label for="base_bench"> Base Bench </label> <input value="1" id="base_bench" name="base_bench">
                     </div>
                     <div class="row">
-                        <label for="base_network"> Base Network </label> <select id="base_network" name="base_network"></select>
+                        <label for="base_network"> Base Network </label>
+			<select id="base_network" name="base_network" onchange="change_network(value, 'base');"></select>
                     </div>
                     <div class="row">
                         <label for="base_options"> Base Options </label> <input id="base_options" name="base_options">
                     </div>
                     <div class="row">
                         <label for="base_time_control" > Base Time </label> <input id="base_time_control" name="base_time_control">
+                    </div>
+
+                    <h3> Information </h3>
+
+                    <div class="row">
+                        <label for="info"> Info </label> <textarea id="info" name="info" rows="4"></textarea>
                     </div>
 
                 {% elif workload == "TUNE" %}
@@ -116,6 +124,12 @@
                             <option selected value="SINGLE"> Single </option>
                             <option value="MULTIPLE"> Multiple </option>
                         </select>
+                    </div>
+
+                    <h3> Information </h3>
+
+                    <div class="row">
+                        <label for="info"> Info </label> <textarea id="info" name="info" rows="4"></textarea>
                     </div>
 
                     <h3> SPSA Input </h3>

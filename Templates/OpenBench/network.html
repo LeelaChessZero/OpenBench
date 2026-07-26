@@ -35,6 +35,11 @@
                 </div>
 
                 <div class="row">
+                    <label for="scale_nps"> NPS Scale </label>
+                    <input id="scale_nps" name="scale_nps" value="{{network.scale_nps}}">
+                </div>
+
+                <div class="row">
                     <label for="default"> Default </label>
                     <select id="default" name="default">
                         {% if network.default %}

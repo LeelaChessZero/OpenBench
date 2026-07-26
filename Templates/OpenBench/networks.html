@@ -27,6 +27,7 @@
             <th class="cursor" onclick="sort_networks(['engine'])">Engine</th>
             <th class="cursor" onclick="sort_networks(['author'])">Author</th>
             <th class="cursor" onclick="sort_networks(['name'])">Name</th>
+            <th class="cursor" onclick="sort_networks(['scale_nps'])">NPS Scale</th>
             <th class="cursor" onclick="sort_networks(['sha256'])")>Hash</th>
             <th></th>
             <th></th>
@@ -47,6 +48,7 @@
                 <td><a href="/networks/{{network.engine}}/">{{network.engine}}</a></td>
                 <td>{{network.author|capfirst}}</td>
                 <td><a href="/networks/{{network.engine}}/DOWNLOAD/{{network.sha256}}">{{network.name}}</a></td>
+                <td>{{network.scale_nps}}</td>
                 <td>{{network.sha256}}</td>
 
                 <td>

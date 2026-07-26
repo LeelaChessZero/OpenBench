@@ -18,7 +18,7 @@
         <link rel="preconnect" href="https://fonts.gstatic.com">
         <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap" rel="stylesheet">
 
-        <title>OpenBench</title>
+        <title>{% block title %}OpenBench{% endblock %}</title>
 
         {% block scripts %}
         {% endblock %}
@@ -37,8 +37,8 @@
                     };
 
                     for (var i = 0; i < timestamps.length; i++) {
-                        var date = new Date(1000 * timestamps[i].innerHTML);
-                        timestamps[i].innerHTML = date.toLocaleString(undefined, options);
+                        var date = new Date(1000 * timestamps[i].textContent);
+                        timestamps[i].textContent = date.toLocaleString(undefined, options);
                     }
                 }
 
@@ -51,9 +51,34 @@
                     };
 
                     for (var i = 0; i < datestamps.length; i++) {
-                        var date = new Date(1000 * datestamps[i].innerHTML);
-                        datestamps[i].innerHTML = date.toLocaleString(undefined, options);
+                        var date = new Date(1000 * datestamps[i].textContent);
+                        datestamps[i].textContent = date.toLocaleString(undefined, options);
                     }
+                }
+
+                {
+                    const cells = document.querySelectorAll('.engine-options');
+
+                    cells.forEach(cell => {
+
+                        // Only have Threads= and Hash= settings
+                        if (cell.textContent.split(/\s+/).length <= 2)
+                            return;
+
+                        // Only display Threads=X Hash=X ...
+                        const re_threads = cell.textContent.match(/Threads=\d+/)[0];
+                        const re_hash    = cell.textContent.match(/Hash=\d+/)[0];
+                        const new_text   = re_threads + ' ' + re_hash + ' ...'
+
+                        // Add all options into the popup text
+                        const popup = document.createElement('div');
+                        popup.classList.add('engine-options-popup');
+                        popup.innerHTML = cell.textContent.trim().replace(/\s+/g, '<br>');
+
+                        // Prune text, and append popup
+                        cell.textContent = new_text;
+                        cell.appendChild(popup);
+                    });
                 }
 
             }, false);
