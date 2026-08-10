@@ -744,7 +744,9 @@ class ResultsReporter(object):
             baselog = MatchRunner.log_name(self.config, 'base', timestamp, x)
             fastchesslog = MatchRunner.log_name(self.config, 'fastchess', timestamp, x)
 
-            if ((not os.path.isfile(fname)) or (os.path.getsize(fname) == 0)) and (not abort_flag.is_set()):
+            if (not os.path.isfile(fname)) or (os.path.getsize(fname) == 0):
+                if abort_flag.is_set():
+                    continue
                 error = 'Start Failed'
                 as_str = '[Log "%s"]\n' % (devlog)
                 as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES)
