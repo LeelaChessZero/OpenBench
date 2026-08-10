@@ -499,6 +499,10 @@ class MatchRunner:
         return 'option.LogFile=../%s' % (MatchRunner.log_name(config, branch, timestamp, runner_idx))
 
     @staticmethod
+    def fastchesslog_settings(config, timestamp, runner_idx):
+        return '-log engine=true level=trace file=%s' % (MatchRunner.log_name(config, 'fastchess', timestamp, runner_idx))
+
+    @staticmethod
     def update_results(config, results, line, base_name, base_network):
 
         # Given any game #, find the other in the pair
@@ -734,6 +738,7 @@ class ResultsReporter(object):
             fname = MatchRunner.pgn_name(self.config, timestamp, x)
             devlog = MatchRunner.log_name(self.config, 'dev', timestamp, x)
             baselog = MatchRunner.log_name(self.config, 'base', timestamp, x)
+            fastchesslog = MatchRunner.log_name(self.config, 'fastchess', timestamp, x)
 
             if (not os.path.isfile(fname)) or (os.path.getsize(fname) == 0):
                 error = 'Start Failed'
@@ -741,6 +746,8 @@ class ResultsReporter(object):
                 as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES)
                 as_str += '\n\n[Log "%s"]\n' % (baselog)
                 as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES)
+                as_str += '\n\n[Log "%s"]\n' % (fastchesslog)
+                as_str += read_tail_of_log(fastchesslog, ENGINE_LOG_LINES)
                 ServerReporter.report_engine_error(self.config, error, as_str)
                 continue
 
@@ -754,6 +761,8 @@ class ResultsReporter(object):
                     as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES, end_time=end_time)
                     as_str += '\n\n[Log "%s"]\n' % (baselog)
                     as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES, end_time=end_time)
+                    as_str += '\n\n[Log "%s"]\n' % (fastchesslog)
+                    as_str += read_tail_of_log(fastchesslog, ENGINE_LOG_LINES, end_time=end_time)
                     ServerReporter.report_engine_error(self.config, error, as_str)
 
 
@@ -1303,6 +1312,7 @@ def build_runner_command(config, dev_cmd, base_cmd, scale_factor, timestamp, run
     flags += ' ' + MatchRunner.enginelog_settings(config, 'base', timestamp, runner_idx)
     flags += ' ' + MatchRunner.book_settings(config, runner_idx)
     flags += ' ' + MatchRunner.pgnout_settings(config, timestamp, runner_idx)
+    flags += ' ' + MatchRunner.fastchesslog_settings(config, timestamp, runner_idx)
 
     return MatchRunner.executable(config) + flags
 
