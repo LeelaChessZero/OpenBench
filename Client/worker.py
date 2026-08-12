@@ -499,6 +499,10 @@ class MatchRunner:
         return 'option.LogFile=../%s' % (MatchRunner.log_name(config, branch, timestamp, runner_idx))
 
     @staticmethod
+    def fastchesslog_settings(config, timestamp, runner_idx):
+        return '-log engine=true level=trace file=%s' % (MatchRunner.log_name(config, 'fastchess', timestamp, runner_idx))
+
+    @staticmethod
     def update_results(config, results, line, base_name, base_network):
 
         # Given any game #, find the other in the pair
@@ -726,26 +730,37 @@ class ResultsReporter(object):
             print ('[Note] Failed to upload results to server...')
             self.last_report = time.time()
 
-    def send_errors(self, timestamp, runner_cnt):
+    def send_errors(self, timestamp, runner_cnt, abort_flag):
 
+        is_datagen      = self.config.workload['test']['type'] == 'DATAGEN'
+        no_reverse      = is_datagen and not self.config.workload['test']['play_reverses']
+        rounds = self.config.workload['distribution']['rounds-per-runner']
+        rounds *= 2 if not no_reverse else 1
         for x in range(runner_cnt):
 
             # Reuse logic that was given to match runner to decide the PGN name
             fname = MatchRunner.pgn_name(self.config, timestamp, x)
             devlog = MatchRunner.log_name(self.config, 'dev', timestamp, x)
             baselog = MatchRunner.log_name(self.config, 'base', timestamp, x)
+            fastchesslog = MatchRunner.log_name(self.config, 'fastchess', timestamp, x)
 
             if (not os.path.isfile(fname)) or (os.path.getsize(fname) == 0):
+                if abort_flag.is_set():
+                    continue
                 error = 'Start Failed'
                 as_str = '[Log "%s"]\n' % (devlog)
                 as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES)
                 as_str += '\n\n[Log "%s"]\n' % (baselog)
                 as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES)
+                as_str += '\n\n[Log "%s"]\n' % (fastchesslog)
+                as_str += read_tail_of_log(fastchesslog, ENGINE_LOG_LINES)
                 ServerReporter.report_engine_error(self.config, error, as_str)
                 continue
 
             # For any game with weird Termination, report it
+            count = 0
             for header, moves in PGNHelper.slice_pgn_file(fname):
+                count += 1
                 error = PGNHelper.get_error_reason(header)
                 if error:
                     as_str = PGNHelper.pretty_format(header, moves)
@@ -754,7 +769,19 @@ class ResultsReporter(object):
                     as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES, end_time=end_time)
                     as_str += '\n\n[Log "%s"]\n' % (baselog)
                     as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES, end_time=end_time)
+                    as_str += '\n\n[Log "%s"]\n' % (fastchesslog)
+                    as_str += read_tail_of_log(fastchesslog, ENGINE_LOG_LINES, end_time=end_time)
                     ServerReporter.report_engine_error(self.config, error, as_str)
+
+            if not abort_flag.is_set() and count != rounds:
+                error = 'Missing Games'
+                as_str = '[Log "%s"]\n' % (devlog)
+                as_str += read_tail_of_log(devlog, ENGINE_LOG_LINES)
+                as_str += '\n\n[Log "%s"]\n' % (baselog)
+                as_str += read_tail_of_log(baselog, ENGINE_LOG_LINES)
+                as_str += '\n\n[Log "%s"]\n' % (fastchesslog)
+                as_str += read_tail_of_log(fastchesslog, ENGINE_LOG_LINES)
+                ServerReporter.report_engine_error(self.config, error, as_str)
 
 
 def get_version(program):
@@ -1188,7 +1215,7 @@ def complete_workload(config):
         try:
             rr = ResultsReporter(config, tasks, results, abort_flag)
             rr.process_until_finished()
-            rr.send_errors(timestamp, runner_cnt)
+            rr.send_errors(timestamp, runner_cnt, abort_flag)
             MatchRunner.kill_everything(dev_name, base_name)
 
         # Kill everything during an Exception, but print it
@@ -1303,6 +1330,7 @@ def build_runner_command(config, dev_cmd, base_cmd, scale_factor, timestamp, run
     flags += ' ' + MatchRunner.enginelog_settings(config, 'base', timestamp, runner_idx)
     flags += ' ' + MatchRunner.book_settings(config, runner_idx)
     flags += ' ' + MatchRunner.pgnout_settings(config, timestamp, runner_idx)
+    flags += ' ' + MatchRunner.fastchesslog_settings(config, timestamp, runner_idx)
 
     return MatchRunner.executable(config) + flags
 
