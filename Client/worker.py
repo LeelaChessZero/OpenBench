@@ -444,8 +444,8 @@ class MatchRunner:
 
             # -repeat might not be applied, so handle the book offsets
             no_reverse = not config.workload['test']['play_reverses']
-            pairs      = config.workload['distribution']['rounds-per-runner'] // 2
-            start      = 1 + (runner_idx * pairs * (1 + no_reverse))
+            pairs      = config.workload['distribution']['rounds-per-runner']
+            start      = 1 + runner_idx * pairs
             return '-openings file=Books/openbench.genfens.epd format=epd order=sequential start=%d' % (start)
 
         # Can handle EPD and PGN Books, which must be specified
@@ -453,7 +453,7 @@ class MatchRunner:
         book_suffix = book_name.split('.')[-1]
 
         # Start position is determined partially by runner index
-        pairs = config.workload['distribution']['rounds-per-runner'] // 2
+        pairs = config.workload['distribution']['rounds-per-runner']
         start = config.workload['test']['book_index'] + runner_idx * pairs
 
         return '-openings file=Books/%s format=%s order=random start=%d -srand %d' % (

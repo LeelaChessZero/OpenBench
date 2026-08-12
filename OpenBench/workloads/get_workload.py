@@ -253,7 +253,7 @@ def workload_to_dictionary(test, result, machine):
         workload['test']['book_index'] = test.book_index
 
         runner_cnt    = workload['distribution']['runner-count']
-        pairs_per_cnt = workload['distribution']['rounds-per-runner'] // 2
+        pairs_per_cnt = workload['distribution']['rounds-per-runner']
         per_opening   = 2 if (test.test_mode == 'DATAGEN' and not test.play_reverses) else 1
 
         test.book_index += runner_cnt * pairs_per_cnt * per_opening
