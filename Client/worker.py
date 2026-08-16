@@ -66,7 +66,7 @@ TIMEOUT_HTTP     = 30 # Timeout in seconds for HTTP requests
 TIMEOUT_ERROR    = 60 # Timeout in seconds when any errors are thrown
 TIMEOUT_WORKLOAD = 60 # Timeout in seconds between workload requests
 REPORT_INTERVAL  = 30 # Seconds between reports to the Server
-ENGINE_LOG_LINES = 200 # Lines of the engine log to send to the Server on error
+ENGINE_LOG_LINES = 300 # Lines of the engine log to send to the Server on error
 
 IS_WINDOWS = platform.system() == 'Windows' # Don't touch this
 IS_LINUX   = platform.system() != 'Windows' # Don't touch this
