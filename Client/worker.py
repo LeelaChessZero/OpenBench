@@ -641,6 +641,9 @@ class PGNHelper:
         if reason and 'illegal' in reason:
             return 'Illegal Move'
 
+        if reason and 'time forfeit' in reason:
+            return 'Lost on Time'
+
     @staticmethod
     def pretty_format(headers, moves):
         return '\n'.join(headers + [''] + moves)
