@@ -503,7 +503,7 @@ class MatchRunner:
         return '-log engine=true level=trace file=%s' % (MatchRunner.log_name(config, 'fastchess', timestamp, runner_idx))
 
     @staticmethod
-    def update_results(config, results, line, base_name, base_network):
+    def update_results(config, results, line, base_name):
 
         # Given any game #, find the other in the pair
         def game_to_pair(g):
@@ -524,7 +524,7 @@ class MatchRunner:
             tokens = line.split()
             return int(tokens[2]), tokens[6]
 
-        def is_gpu_crashed(config, engine, network):
+        def is_gpu_crashed(config, engine):
             print('[WARNING] Checking if crash was caused by a GPU problem...')
             try:
                 safe_run_benchmarks(config, 'base', engine)
@@ -536,7 +536,7 @@ class MatchRunner:
         # Parse for errors resulting in adjudication
         reason = line.split(':')[1]
         crashed = 'disconnect' in reason or 'stalls' in reason
-        hw_crashed = crashed and is_gpu_crashed(config, base_name, base_network)
+        hw_crashed = crashed and is_gpu_crashed(config, base_name)
         results['crashes'   ] += 'disconnect' in reason or 'stalls' in reason
         results['timelosses'] += 'on time' in reason
         results['illegals'  ] += 'illegal' in reason
@@ -1212,7 +1212,7 @@ def complete_workload(config):
         tasks = [] # Create each of the match runner workers
         for x in range(runner_cnt):
             cmd = build_runner_command(config, dev_name, base_name, scale_factor, timestamp, x)
-            tasks.append(executor.submit(run_and_parse_runner, config, cmd, x, results, abort_flag, base_name, base_network))
+            tasks.append(executor.submit(run_and_parse_runner, config, cmd, x, results, abort_flag, base_name))
 
         # Process the Queue until we exit, finish, or are told to stop by the server
         try:
@@ -1337,15 +1337,15 @@ def build_runner_command(config, dev_cmd, base_cmd, scale_factor, timestamp, run
 
     return MatchRunner.executable(config) + flags
 
-def run_and_parse_runner(config, command, runner_idx, results_queue, abort_flag, base_name, base_network):
+def run_and_parse_runner(config, command, runner_idx, results_queue, abort_flag, base_name):
     try:
-        run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name, base_network)
+        run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name)
     except Exception as error:
         print('[ERROR] Match Runner #%d failed with exception: %s' % (runner_idx, str(error)))
         traceback.print_exc()
         pass
 
-def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name, base_network):
+def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name):
 
     print('\n[#%d] Launching match runner...\n%s\n' % (runner_idx, command))
     runner = Popen(shlex.split(command), stdout=PIPE)
@@ -1375,7 +1375,7 @@ def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag
             print('[#%d] %s' % (runner_idx, line))
 
         if 'Finished game' in line:
-            MatchRunner.update_results(config, results, line, base_name, base_network)
+            MatchRunner.update_results(config, results, line, base_name)
 
         # Add to the results queue every time we have a game-pair finished
         if any(results['pentanomial']):
