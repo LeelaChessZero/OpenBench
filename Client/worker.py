@@ -527,7 +527,7 @@ class MatchRunner:
         def is_gpu_crashed(config, engine, network):
             print('[WARNING] Checking if crash was caused by a GPU problem...')
             try:
-                safe_run_benchmarks(config, 'base', engine, network)
+                safe_run_benchmarks(config, 'base', engine)
                 return False
             except utils.OpenBenchBadBenchException:
                 print('[ERROR] GPU crash detected!')
