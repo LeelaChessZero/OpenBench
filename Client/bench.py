@@ -66,9 +66,13 @@ def parse_stream_output(stream):
     bench = int(re.search(r'\d+', bench).group()) if bench else None
     return (bench, nps)
 
-def single_core_bench(binary, outqueue):
+def single_core_bench(binary, outqueue, runner_idx):
 
     cmd = ['./%s' % (binary), 'bench']
+
+    if runner_idx is not None:
+        cmd.append('-o')
+        cmd.append('gpu=%d' % (runner_idx))
 
     try: # Launch the bench and wait for results
         stdout, stderr = subprocess.Popen(
@@ -79,13 +83,13 @@ def single_core_bench(binary, outqueue):
     except: # Signal an error with (None, None)
         outqueue.put((None, None))
 
-def multi_core_bench(binary, threads):
+def multi_core_bench(binary, threads, runner_idx):
 
     outqueue = multiprocessing.Queue()
 
     processes = [
         multiprocessing.Process(
-            target=single_core_bench, args=(binary, outqueue))
+            target=single_core_bench, args=(binary, outqueue, runner_idx))
         for ii in range(threads)
     ]
 
@@ -103,13 +107,13 @@ def multi_core_bench(binary, threads):
         for process in processes:
             process.join()
 
-def run_benchmark(binary, threads, sets, expected=None):
+def run_benchmark(binary, threads, sets, expected=None, runner_idx=None):
 
     engine = os.path.basename(binary)
 
     benches, speeds = [], []
     for ii in range(sets):
-        for bench, speed in multi_core_bench(binary, threads):
+        for bench, speed in multi_core_bench(binary, threads, runner_idx):
             benches.append(bench); speeds.append(speed)
 
     if None in benches or None in speeds:

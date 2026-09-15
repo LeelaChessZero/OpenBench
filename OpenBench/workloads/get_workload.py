@@ -289,10 +289,6 @@ def game_distribution(test, machine):
     if machine.info['physical_cores'] < worker_threads and dev_threads != base_threads:
         worker_threads = worker_threads // 2
 
-    # Ignore sockets for concurrent match runners, when playing with more than one thread
-    if max(dev_threads, base_threads) > 1:
-        worker_sockets = 1
-
     # Max possible concurrent engine games, per copy of match runner
     max_concurrency = (worker_threads // worker_sockets) // max(dev_threads, base_threads)
 

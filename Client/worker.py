@@ -406,10 +406,12 @@ class MatchRunner:
         is_datagen      = config.workload['test']['type'] == 'DATAGEN'
         no_reverse      = is_datagen and not config.workload['test']['play_reverses']
         games_per_round = 1 if no_reverse else 2
+        runner_cnt      = config.workload['distribution']['runner-count']
+        round_mult      = 2 if runner_cnt > 1 else 1
 
         return '-concurrency %d -rounds %d -games %d' % (
             config.workload['distribution']['concurrency-per'],
-            config.workload['distribution']['rounds-per-runner'],
+            config.workload['distribution']['rounds-per-runner'] * round_mult,
             games_per_round,
         )
 
@@ -479,6 +481,9 @@ class MatchRunner:
         if syzygy != 'DISABLED' and syzygy != 'OPTIONAL':
             options += ' SyzygyProbeLimit=%s' % (syzygy.split('-')[0])
 
+        if runner_idx > 0:
+            options += ' BackendOptions=gpu=%d' % (runner_idx)
+
         # Add any of the custom SPSA settings
         if config.workload['test']['type'] == 'SPSA':
             for param, data in config.workload['spsa'].items():
@@ -503,7 +508,7 @@ class MatchRunner:
         return '-log engine=true level=trace file=%s' % (MatchRunner.log_name(config, 'fastchess', timestamp, runner_idx))
 
     @staticmethod
-    def update_results(config, results, line, base_name):
+    def update_results(config, results, line, base_name, runner_idx):
 
         # Given any game #, find the other in the pair
         def game_to_pair(g):
@@ -527,7 +532,7 @@ class MatchRunner:
         def is_gpu_crashed(config, engine):
             print('[WARNING] Checking if crash was caused by a GPU problem...')
             try:
-                safe_run_benchmarks(config, 'base', engine)
+                safe_run_benchmarks(config, 'base', engine, runner_idx)
                 return False
             except utils.OpenBenchBadBenchException:
                 print('[ERROR] GPU crash detected!')
@@ -535,11 +540,17 @@ class MatchRunner:
 
         # Parse for errors resulting in adjudication
         reason = line.split(':')[1]
+        game_id = int(line.split()[2])
+        is_datagen = config.workload['test']['type'] == 'DATAGEN'
+        noreverse = is_datagen and not config.workload['test']['play_reverses']
+        games_per_round = 1 if noreverse else 2
+        limit = config.workload['distribution']['rounds-per-runner'] * games_per_round
         crashed = 'disconnect' in reason or 'stalls' in reason
         hw_crashed = crashed and is_gpu_crashed(config, base_name)
         results['crashes'   ] += 'disconnect' in reason or 'stalls' in reason
         results['timelosses'] += 'on time' in reason
         results['illegals'  ] += 'illegal' in reason
+        results['done'      ] = results['done'] or game_id == limit
 
         # Parse Game # and result, and save
         game, result = parse_finished_game(line)
@@ -660,7 +671,7 @@ class ResultsReporter(object):
         self.results_queue = results_queue
         self.abort_flag    = abort_flag
 
-    def process_until_finished(self):
+    def process_until_finished(self, batch_done):
 
         self.last_report = 0
         self.pending     = []
@@ -669,15 +680,20 @@ class ResultsReporter(object):
         self.bulk = self.config.workload['test']['type'] == 'SPSA'
         self.bulk = self.bulk and self.config.workload['reporting_type'] == 'BULK'
 
+        runner_cnt = self.config.workload['distribution']['runner-count']
+
         # Block up-to 5 seconds to get a new result
         def get_next_result():
             try: return self.results_queue.get(timeout=5)
             except queue.Empty: return False
 
         # Collect results until all Tasks are done
-        while any(not task.done() for task in self.tasks):
+        while runner_cnt > 0 and any(not task.done() for task in self.tasks):
 
             result = get_next_result()
+            if result and result['done']:
+                runner_cnt = runner_cnt - 1
+
             if result:
                 self.pending.append(result)
 
@@ -688,6 +704,9 @@ class ResultsReporter(object):
             # Kill everything if openbench.exit is created
             if os.path.isfile('openbench.exit'):
                 return self.abort_flag.set()
+
+        if any(not task.done() for task in self.tasks):
+            batch_done.set()
 
         # Exhaust the Results Queue completely since Tasks are done
         while True:
@@ -1208,16 +1227,17 @@ def complete_workload(config):
         timestamp  = time.time()
         results    = multiprocessing.Queue()
         abort_flag = threading.Event()
+        batch_done = threading.Event()
 
         tasks = [] # Create each of the match runner workers
         for x in range(runner_cnt):
             cmd = build_runner_command(config, dev_name, base_name, scale_factor, timestamp, x)
-            tasks.append(executor.submit(run_and_parse_runner, config, cmd, x, results, abort_flag, base_name))
+            tasks.append(executor.submit(run_and_parse_runner, config, cmd, x, results, abort_flag, base_name, batch_done))
 
         # Process the Queue until we exit, finish, or are told to stop by the server
         try:
             rr = ResultsReporter(config, tasks, results, abort_flag)
-            rr.process_until_finished()
+            rr.process_until_finished(batch_done)
             rr.send_errors(timestamp, runner_cnt, abort_flag)
             MatchRunner.kill_everything(dev_name, base_name)
 
@@ -1302,7 +1322,7 @@ def safe_create_genfens_opening_book(config, dev_name):
             ServerReporter.report_engine_error(config, error.message)
             raise
 
-def safe_run_benchmarks(config, branch, engine):
+def safe_run_benchmarks(config, branch, engine, runner_idx=None):
 
     name     = config.workload['test'][branch]['name']
     expected = int(config.workload['test'][branch]['bench'])
@@ -1310,7 +1330,7 @@ def safe_run_benchmarks(config, branch, engine):
 
     try:
         print('\nRunning Benchmarks for %s' % (name))
-        speed, nodes = bench.run_benchmark(binary, 1, 1, expected)
+        speed, nodes = bench.run_benchmark(binary, 1, 1, expected, runner_idx=runner_idx)
 
     except utils.OpenBenchBadBenchException as error:
         config.blacklist.append(config.workload['test']['id'])
@@ -1337,15 +1357,15 @@ def build_runner_command(config, dev_cmd, base_cmd, scale_factor, timestamp, run
 
     return MatchRunner.executable(config) + flags
 
-def run_and_parse_runner(config, command, runner_idx, results_queue, abort_flag, base_name):
+def run_and_parse_runner(config, command, runner_idx, results_queue, abort_flag, base_name, batch_done):
     try:
-        run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name)
+        run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name, batch_done)
     except Exception as error:
         print('[ERROR] Match Runner #%d failed with exception: %s' % (runner_idx, str(error)))
         traceback.print_exc()
         pass
 
-def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name):
+def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag, base_name, batch_done):
 
     print('\n[#%d] Launching match runner...\n%s\n' % (runner_idx, command))
     runner = Popen(shlex.split(command), stdout=PIPE)
@@ -1355,6 +1375,7 @@ def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag
         'trinomial'   : [0, 0, 0],       # LDW
         'pentanomial' : [0, 0, 0, 0, 0], # LL DL DD DW WW
         'games'       : {},              # game_id : result_str
+        'done'        : False,           # highest completed done for termination checking
 
         'crashes'     : 0,               # " disconnect" or "connection stalls"
         'timelosses'  : 0,               # " loses on time "
@@ -1375,7 +1396,7 @@ def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag
             print('[#%d] %s' % (runner_idx, line))
 
         if 'Finished game' in line:
-            MatchRunner.update_results(config, results, line, base_name)
+            MatchRunner.update_results(config, results, line, base_name, runner_idx)
 
         # Add to the results queue every time we have a game-pair finished
         if any(results['pentanomial']):
@@ -1387,15 +1408,19 @@ def run_and_parse_runner_(config, command, runner_idx, results_queue, abort_flag
                 'crashes'       : results['crashes'],
                 'timelosses'    : results['timelosses'],
                 'illegals'      : results['illegals'],
+                'done'          : results['done'],
                 'runner_idx'    : runner_idx,
             })
 
+            if batch_done.is_set():
+                break
             # Clear out all the results, so we can start collecting a new set
             results['trinomial'  ] = [0, 0, 0]
             results['pentanomial'] = [0, 0, 0, 0, 0]
             results['crashes'    ] = 0
             results['timelosses' ] = 0
             results['illegals'   ] = 0
+            results['done'       ] = False
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                                                           #
