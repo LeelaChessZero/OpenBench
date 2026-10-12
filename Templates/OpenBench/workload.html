@@ -82,6 +82,10 @@
 
         <div class="anchor-container">
 
+            {% if type == "TEST" and profile.enabled %}
+                <a class="anchorbutton btn-blue" href="/test/new/?clone={{workload.id}}">Clone</a>
+            {% endif %}
+
             <!-- Approve Button: For Admins, or Cross-approvers -->
             {% if not workload.approved and profile.approver and profile.user.username != workload.author %}
                 <a class="anchorbutton btn-blue" href="/{{type|lower}}/{{workload.id}}/APPROVE">Approve</a>

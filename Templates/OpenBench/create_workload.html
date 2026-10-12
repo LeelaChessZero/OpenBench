@@ -7,16 +7,28 @@
     {{ config|json_script:"json-config" }}
     {{ networks|json_script:"json-networks" }}
     {{ profile.repos|json_script:"json-repos" }}
+    {% if clone_settings %}{{ clone_settings|json_script:"json-clone-settings" }}{% endif %}
 
     <script src="{% static 'create_workload.js' %}?{{ static_version }}"></script>
     <script src="{% static 'default_text.js' %}?{{ static_version }}"></script>
+    {% if workload == "TUNE" %}
+        <script src="{% static 'spsa_editor.js' %}?{{ static_version }}"></script>
+    {% endif %}
 
     <script>
         document.addEventListener(
             'DOMContentLoaded', function () {
-                change_engine('{{ profile.engine }}', 'dev', '{{workload}}');
+                const clone = document.getElementById('json-clone-settings');
+                const settings = clone ? JSON.parse(clone.textContent) : null;
+                const preferred = settings && config.engines[settings.dev_engine]
+                    ? settings.dev_engine : '{{ profile.engine }}';
+                const initial = config.engines[preferred] ? preferred : Object.keys(config.engines)[0];
+                change_engine(initial, 'dev', '{{workload}}');
+                if (settings)
+                    apply_clone_settings(settings);
                 enforce_default_text('dev_repo', 'https://github.com/');
                 enforce_default_text('base_repo', 'https://github.com/');
+                {% if workload == "TUNE" %}init_spsa_editor();{% endif %}
             }, false
         );
     </script>
@@ -130,12 +142,6 @@
 
                     <div class="row">
                         <label for="info"> Info </label> <textarea id="info" name="info" rows="4"></textarea>
-                    </div>
-
-                    <h3> SPSA Input </h3>
-
-                    <div class="row">
-                        <textarea style="margin-left:24px" id="spsa_inputs" name="spsa_inputs" rows=9></textarea>
                     </div>
 
                 {% endif %}
@@ -299,6 +305,43 @@
                 </div>
             </div>
         </div>
+
+        {% if workload == "TUNE" %}
+            <div class="form spsa-editor" id="spsa-editor">
+                <h3>SPSA Input</h3>
+                <div class="spsa-tabs" aria-label="SPSA input view">
+                    <button type="button" class="anchorbutton btn-blue" id="spsa-table-tab" aria-pressed="false">Table</button>
+                    <button type="button" class="anchorbutton btn-blue" id="spsa-text-tab" aria-pressed="true">Text</button>
+                </div>
+
+                <div id="spsa-table-panel" hidden>
+                    <div class="spsa-table-scroll">
+                        <table class="spsa-input-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Start</th>
+                                    <th scope="col">Min</th>
+                                    <th scope="col">Max</th>
+                                    <th scope="col">C end</th>
+                                    <th scope="col">R end</th>
+                                    <th scope="col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="spsa-rows"></tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="anchorbutton btn-blue spsa-add-row" id="spsa-add-row">Add parameter</button>
+                </div>
+
+                <div id="spsa-text-panel">
+                    <label for="spsa_inputs">One parameter per line: name, type, start, min, max, C end, R end</label>
+                    <textarea id="spsa_inputs" name="spsa_inputs" rows=9 spellcheck="false"></textarea>
+                </div>
+                <div id="spsa-editor-errors" class="spsa-editor-errors" role="alert" hidden></div>
+            </div>
+        {% endif %}
 
         <input type="submit" class="anchorbutton btn-start mt-3 mw-84" name="submit" value="{{submit_text}}">
     </form>

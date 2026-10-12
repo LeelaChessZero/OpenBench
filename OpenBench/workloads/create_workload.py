@@ -64,6 +64,16 @@ def create_workload(request, workload_type):
             data['submit_text']     = 'Create Engine Test'
             data['submit_endpoint'] = '/test/new/'
 
+            if clone_id := request.GET.get('clone'):
+                clone_pk = int(clone_id) if len(clone_id) <= 19 and clone_id.isascii() and clone_id.isdecimal() else 0
+                source = Test.objects.select_related('dev', 'base').filter(
+                    pk=clone_pk if 0 < clone_pk <= 2**63 - 1 else 0,
+                    test_mode__in=['SPRT', 'GAMES'],
+                ).first()
+                if source is None:
+                    return OpenBench.views.redirect(request, '/test/new/', error='No such Test exists to clone')
+                data['clone_settings'] = test_clone_settings(source)
+
         if workload_type == 'TUNE':
             data['workload']        = workload_type
             data['dev_text']        = ''
@@ -105,6 +115,48 @@ def create_workload(request, workload_type):
         workload.approved = True; workload.save()
 
     return OpenBench.views.redirect(request, '/index/', warning=warning)
+
+def test_clone_settings(source):
+
+    settings = {
+        'dev_engine'       : source.dev_engine,
+        'dev_repo'         : source.dev_repo,
+        'dev_branch'       : source.dev.name,
+        'dev_bench'        : source.dev.bench,
+        'dev_network'      : source.dev_network,
+        'dev_options'      : source.dev_options,
+        'dev_time_control' : source.dev_time_control,
+        'base_engine'       : source.base_engine,
+        'base_repo'         : source.base_repo,
+        'base_branch'       : source.base.name,
+        'base_bench'        : source.base.bench,
+        'base_network'      : source.base_network,
+        'base_options'      : source.base_options,
+        'base_time_control' : source.base_time_control,
+        'info'              : source.info,
+        'book_name'         : source.book_name,
+        'upload_pgns'       : source.upload_pgns,
+        'priority'          : source.priority,
+        'throughput'        : source.throughput,
+        'workload_size'     : source.workload_size,
+        'syzygy_wdl'        : source.syzygy_wdl,
+        'syzygy_adj'        : source.syzygy_adj,
+        'win_adj'           : source.win_adj,
+        'draw_adj'          : source.draw_adj,
+        'scale_method'      : source.scale_method,
+        'scale_nps'         : source.scale_nps,
+        'test_mode'         : source.test_mode,
+        'test_bounds'       : '[%s, %s]' % (source.elolower, source.eloupper),
+        'test_confidence'   : '[%s, %s]' % (source.beta, source.alpha),
+        'test_max_games'    : source.max_games,
+    }
+
+    if source.test_mode == 'SPRT':
+        settings['test_max_games'] = 'N/A'
+    else:
+        settings['test_bounds'] = settings['test_confidence'] = 'N/A'
+
+    return settings
 
 def create_new_test(request):
 

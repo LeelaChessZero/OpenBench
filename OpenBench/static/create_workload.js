@@ -124,6 +124,44 @@ function add_defaults_to_preset(engine, preset, workload_type) {
     return settings;
 }
 
+function set_clone_choice(field_id, value) {
+
+    const field = document.getElementById(field_id);
+    const choice = Array.from(field.options).find(option => option.value == value);
+
+    if (choice) {
+        field.value = choice.value;
+        return;
+    }
+
+    // An old test may reference a book, network, or engine no longer configured.
+    const unavailable = document.createElement('option');
+    unavailable.value = value;
+    unavailable.text = value + ' (unavailable; choose another)';
+    field.add(unavailable);
+    field.value = value;
+}
+
+function apply_clone_settings(settings) {
+
+    // Engine changes rebuild network menus and apply presets. Do those first.
+    if (config.engines[settings.dev_engine])
+        change_engine(settings.dev_engine, 'dev', 'TEST');
+    else
+        document.getElementById('test-mode-buttons').replaceChildren();
+
+    if (config.engines[settings.base_engine])
+        set_engine(settings.base_engine, 'base');
+
+    for (const [field_id, value] of Object.entries(settings)) {
+        const field = document.getElementById(field_id);
+        if (field.tagName.toLowerCase() == 'select')
+            set_clone_choice(field_id, value);
+        else
+            field.value = value;
+    }
+}
+
 function set_engine(engine, target) {
 
     document.getElementById(target + '_engine').value = engine;
