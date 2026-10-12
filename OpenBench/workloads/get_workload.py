@@ -255,8 +255,9 @@ def workload_to_dictionary(test, result, machine):
         runner_cnt    = workload['distribution']['runner-count']
         pairs_per_cnt = workload['distribution']['rounds-per-runner']
         per_opening   = 2 if (test.test_mode == 'DATAGEN' and not test.play_reverses) else 1
+        loadbalancing_mult = 1 if runner_cnt == 1 else 1.1
 
-        test.book_index += runner_cnt * pairs_per_cnt * per_opening
+        test.book_index += runner_cnt * math.ceil(pairs_per_cnt * loadbalancing_mult) * per_opening
 
         if test.test_mode == 'DATAGEN':
             workload['test']['genfens_seeds'] = [
@@ -288,10 +289,6 @@ def game_distribution(test, machine):
     # For core-odds tests, disable hyperthreads, by halving the thread count
     if machine.info['physical_cores'] < worker_threads and dev_threads != base_threads:
         worker_threads = worker_threads // 2
-
-    # Ignore sockets for concurrent match runners, when playing with more than one thread
-    if max(dev_threads, base_threads) > 1:
-        worker_sockets = 1
 
     # Max possible concurrent engine games, per copy of match runner
     max_concurrency = (worker_threads // worker_sockets) // max(dev_threads, base_threads)
